@@ -14,3 +14,11 @@
 * **Résolution :** Purge complète des profils locaux (`minikube delete --all --purge && rm -rf ~/.minikube ~/.kube`) puis redémarrage propre du cluster.
 
 ---
+
+## Erreur 4 : CrashLoopBackOff sur app-admin (HTTP 400 Bad Request sur livenessProbe)
+- **Objectif :** Stabiliser les 3 réplicas de `deploy-admin-n-27-11-2026`.
+- **Commande :** `kubectl logs -l app=app-admin-n-27-11-2026 -n ns-apps-n-27-11-2026`
+- **Erreur :** `"GET / HTTP/1.1" 400 143 "-" "kube-probe/1.37"` suivi de `Handling signal: term`. Django rejetait l'IP interne du Pod envoyée par la sonde kubelet dans l'en-tête `Host`.
+- **Résolution :** Ajout explicite de `ALLOWED_HOSTS = ['*']` à la fin de `apps/app-admin/core/settings.py`, rebuild/push de l'image et `kubectl rollout restart`.
+
+---
