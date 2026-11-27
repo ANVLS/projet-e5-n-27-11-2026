@@ -1758,3 +1758,12 @@ EOF
   337  echo "==========================================" >> logs/etat-cluster-final.txt
   338  kubectl get all,configmap,httproute -n ns-apps-$TAG >> logs/etat-cluster-final.txt
   339  history > logs/historique-commandes.txt
+  340  git add .
+  341  git commit -m "fix(gateway): routage /login et /static pour app-admin + export preuves finales ($TAG)"
+  342  git push
+  343  export TAG="n-27-11-2026"
+  344  cd ~/projet-e5-$TAG
+  345  kubectl get all,configmap,secret,gateway,httproute -n ns-gateway-$TAG > logs/etat-cluster-final.txt
+  346  echo "==========================================" >> logs/etat-cluster-final.txt
+  347  kubectl get all,configmap,httproute -n ns-apps-$TAG >> logs/etat-cluster-final.txt
+  348  history > logs/historique-commandes.txt

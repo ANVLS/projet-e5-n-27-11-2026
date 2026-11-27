@@ -1,58 +1,58 @@
 NAME                                              READY   STATUS    RESTARTS   AGE
-pod/deploy-stripe-n-27-11-2026-6488c7cf6c-7ms9s   1/1     Running   0          117m
-pod/deploy-stripe-n-27-11-2026-6488c7cf6c-9xlm4   1/1     Running   0          117m
-pod/deploy-stripe-n-27-11-2026-6488c7cf6c-r2j42   1/1     Running   0          117m
+pod/deploy-stripe-n-27-11-2026-6488c7cf6c-7ms9s   1/1     Running   0          119m
+pod/deploy-stripe-n-27-11-2026-6488c7cf6c-9xlm4   1/1     Running   0          119m
+pod/deploy-stripe-n-27-11-2026-6488c7cf6c-r2j42   1/1     Running   0          119m
 
 NAME                              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
-service/svc-stripe-n-27-11-2026   ClusterIP   10.102.123.88   <none>        80/TCP    117m
+service/svc-stripe-n-27-11-2026   ClusterIP   10.102.123.88   <none>        80/TCP    119m
 
 NAME                                         READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/deploy-stripe-n-27-11-2026   3/3     3            3           117m
+deployment.apps/deploy-stripe-n-27-11-2026   3/3     3            3           119m
 
 NAME                                                    DESIRED   CURRENT   READY   AGE
-replicaset.apps/deploy-stripe-n-27-11-2026-6488c7cf6c   3         3         3       117m
+replicaset.apps/deploy-stripe-n-27-11-2026-6488c7cf6c   3         3         3       119m
 
 NAME                               DATA   AGE
-configmap/cm-stripe-n-27-11-2026   3      117m
-configmap/kube-root-ca.crt         1      117m
+configmap/cm-stripe-n-27-11-2026   3      119m
+configmap/kube-root-ca.crt         1      119m
 
 NAME                                TYPE     DATA   AGE
-secret/secret-stripe-n-27-11-2026   Opaque   2      117m
+secret/secret-stripe-n-27-11-2026   Opaque   2      119m
 
 NAME                                                     CLASS             ADDRESS   PROGRAMMED   AGE
-gateway.gateway.networking.k8s.io/gw-ecom-n-27-11-2026   eg-n-27-11-2026             False        117m
+gateway.gateway.networking.k8s.io/gw-ecom-n-27-11-2026   eg-n-27-11-2026             False        119m
 
 NAME                                                            HOSTNAMES   AGE
-httproute.gateway.networking.k8s.io/route-stripe-n-27-11-2026               117m
+httproute.gateway.networking.k8s.io/route-stripe-n-27-11-2026               119m
 ==========================================
 NAME                                             READY   STATUS    RESTARTS   AGE
-pod/deploy-admin-n-27-11-2026-6fb78dfd84-2mdlp   1/1     Running   0          49s
-pod/deploy-admin-n-27-11-2026-6fb78dfd84-bv6ct   1/1     Running   0          25s
-pod/deploy-admin-n-27-11-2026-6fb78dfd84-lsbm7   1/1     Running   0          37s
-pod/deploy-front-n-27-11-2026-f4c8b8fd9-dk47f    1/1     Running   0          117m
-pod/deploy-front-n-27-11-2026-f4c8b8fd9-fgx5g    1/1     Running   0          117m
-pod/deploy-front-n-27-11-2026-f4c8b8fd9-tmtqz    1/1     Running   0          117m
+pod/deploy-admin-n-27-11-2026-6fb78dfd84-2mdlp   1/1     Running   0          3m15s
+pod/deploy-admin-n-27-11-2026-6fb78dfd84-bv6ct   1/1     Running   0          2m51s
+pod/deploy-admin-n-27-11-2026-6fb78dfd84-lsbm7   1/1     Running   0          3m3s
+pod/deploy-front-n-27-11-2026-f4c8b8fd9-dk47f    1/1     Running   0          119m
+pod/deploy-front-n-27-11-2026-f4c8b8fd9-fgx5g    1/1     Running   0          119m
+pod/deploy-front-n-27-11-2026-f4c8b8fd9-tmtqz    1/1     Running   0          119m
 
 NAME                             TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
-service/svc-admin-n-27-11-2026   ClusterIP   10.107.110.216   <none>        80/TCP    117m
-service/svc-front-n-27-11-2026   ClusterIP   10.104.44.66     <none>        80/TCP    117m
+service/svc-admin-n-27-11-2026   ClusterIP   10.107.110.216   <none>        80/TCP    119m
+service/svc-front-n-27-11-2026   ClusterIP   10.104.44.66     <none>        80/TCP    119m
 
 NAME                                        READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/deploy-admin-n-27-11-2026   3/3     3            3           117m
-deployment.apps/deploy-front-n-27-11-2026   3/3     3            3           117m
+deployment.apps/deploy-admin-n-27-11-2026   3/3     3            3           119m
+deployment.apps/deploy-front-n-27-11-2026   3/3     3            3           119m
 
 NAME                                                   DESIRED   CURRENT   READY   AGE
-replicaset.apps/deploy-admin-n-27-11-2026-55648f556    0         0         0       117m
-replicaset.apps/deploy-admin-n-27-11-2026-6fb78dfd84   3         3         3       49s
-replicaset.apps/deploy-admin-n-27-11-2026-84bc479975   0         0         0       86m
-replicaset.apps/deploy-admin-n-27-11-2026-85bd75db87   0         0         0       98m
-replicaset.apps/deploy-admin-n-27-11-2026-bc9dd947c    0         0         0       90m
-replicaset.apps/deploy-front-n-27-11-2026-f4c8b8fd9    3         3         3       117m
+replicaset.apps/deploy-admin-n-27-11-2026-55648f556    0         0         0       119m
+replicaset.apps/deploy-admin-n-27-11-2026-6fb78dfd84   3         3         3       3m15s
+replicaset.apps/deploy-admin-n-27-11-2026-84bc479975   0         0         0       88m
+replicaset.apps/deploy-admin-n-27-11-2026-85bd75db87   0         0         0       100m
+replicaset.apps/deploy-admin-n-27-11-2026-bc9dd947c    0         0         0       92m
+replicaset.apps/deploy-front-n-27-11-2026-f4c8b8fd9    3         3         3       119m
 
 NAME                             DATA   AGE
-configmap/cm-apps-n-27-11-2026   2      117m
-configmap/kube-root-ca.crt       1      117m
+configmap/cm-apps-n-27-11-2026   2      119m
+configmap/kube-root-ca.crt       1      119m
 
 NAME                                                           HOSTNAMES   AGE
-httproute.gateway.networking.k8s.io/route-admin-n-27-11-2026               117m
-httproute.gateway.networking.k8s.io/route-front-n-27-11-2026               117m
+httproute.gateway.networking.k8s.io/route-admin-n-27-11-2026               119m
+httproute.gateway.networking.k8s.io/route-front-n-27-11-2026               119m
