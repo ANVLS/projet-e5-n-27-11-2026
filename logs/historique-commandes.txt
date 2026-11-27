@@ -1,0 +1,1533 @@
+    1  clear
+    2  ip addr
+    3  # 1. Démarrer le cluster Minikube avec le driver Docker
+    4  minikube start --driver=docker
+    5  # 2. Activer le registry interne d'images Docker et ouvrir son tunnel
+    6  minikube addons enable registry
+    7  kubectl port-forward --namespace kube-system service/registry 5000:80 &
+    8  sleep 3
+    9  # 3. Installer les CRD Gateway API + le contrôleur Envoy Gateway
+   10  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+   11  kubectl apply --server-side -f https://github.com/envoyproxy/gateway/releases/download/v1.2.2/install.yaml
+   12  # 4. Attendre que le Control Plane Envoy soit prêt
+   13  kubectl wait --timeout=3m -n envoy-gateway-system deployment/envoy-gateway --for=condition=Available
+   14  curl -s http://localhost:5000/v2/_catalo
+   15  minikube start
+   16  sudo poweroff
+   17  clear
+   18  ip addr
+   19  # 1. Mise à jour et outils de base
+   20  sudo apt update && sudo apt install -y curl git ca-certificates apt-transport-https
+   21  # 2. Installation de Docker Engine
+   22  curl -fsSL https://get.docker.com | sudo sh
+   23  sudo usermod -aG docker $USER
+   24  # 3. Installation de kubectl (CLI Kubernetes)
+   25  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+   26  sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+   27  rm kubectl
+   28  # 4. Installation de Minikube
+   29  curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+   30  sudo install minikube-linux-amd64 /usr/local/bin/minikube
+   31  rm minikube-linux-amd64
+   32  # 5. Activer les groupes Docker immédiatement (ou reconnexion SSH)
+   33  newgrp docker
+   34  clear
+   35  minikube start
+   36  clear
+   37  minikube start
+   38  minikube start --driver=docker
+   39  minikube addons enable registry
+   40  kubectl port-forward --namespace kube-system service/registry 5000:80 &
+   41  sleep 3
+   42  curl -s http://localhost:5000/v2/_catalog
+   43  # 1. Supprimer les profils et fichiers JSON corrompus de Minikube
+   44  minikube delete --all --purge
+   45  rm -rf ~/.minikube ~/.kube
+   46  # 2. Démarrer un cluster tout neuf
+   47  minikube start --driver=docker
+   48  # 3. Activer le registry interne et ouvrir le tunnel
+   49  minikube addons enable registry
+   50  kubectl port-forward --namespace kube-system service/registry 5000:80 &
+   51  sleep 3
+   52  curl -s http://localhost:5000/v2/_catalog
+   53  minikube start
+   54  clear
+   55  minikube start
+   56  export TAG="n-27-11-2026"
+   57  # 1. Ouvrir le tunnel vers le registry interne Minikube (port 5000)
+   58  kubectl port-forward --namespace kube-system service/registry 5000:80 &
+   59  sleep 3
+   60  curl -s http://localhost:5000/v2/_catalog
+   61  # 2. Installer la Gateway API + Envoy Gateway
+   62  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+   63  kubectl apply --server-side -f https://github.com/envoyproxy/gateway/releases/download/v1.2.2/install.yaml
+   64  kubectl wait --timeout=3m -n envoy-gateway-system deployment/envoy-gateway --for=condition=Available
+   65  # 3. Initialiser le dépôt Git et l'arborescence
+   66  mkdir -p ~/projet-e5-$TAG/{apps,manifests,logs}
+   67  cd ~/projet-e5-$TAG
+   68  git init -b main
+   69  git config user.name "Anthony NAVAILLES"
+   70  git config user.email "anthony@anvlsinfo.fr"
+   71  cat <<EOF > ~/projet-e5-$TAG/.gitignore
+*.sqlite3
+__pycache__/
+EOF
+
+   72  cat <<EOF > ~/projet-e5-$TAG/erreurs-projet-NAVAILLES-ANTHONY.md
+# Journal des erreurs et résolutions - Projet E5 Kubernetes
+**Candidat :** Anthony NAVAILLES | **Empreinte :** \`$TAG\`
+
+## Erreur 1 : Ressources CPU insuffisantes au démarrage de Minikube
+* **Objectif :** Démarrer le cluster Minikube local.
+* **Commande :** \`minikube start\`
+* **Erreur :** \`Exiting due to RSRC_INSUFFICIENT_CORES: has less than 2 CPUs available, but Kubernetes requires at least 2 to be available\`
+* **Résolution :** Augmentation de la configuration matérielle de la VM \`LabTeste\` à 2 vCPU minimum avant de relancer le cluster.
+
+## Erreur 2 : Fichier de configuration Minikube corrompu après arrêt
+* **Objectif :** Démarrer le cluster Minikube avec le driver Docker.
+* **Commande :** \`minikube start --driver=docker\`
+* **Erreur :** \`Exiting due to HOST_CONFIG_LOAD: Unable to load config: unmarshal: unexpected end of JSON input\`
+* **Résolution :** Purge complète des profils locaux (\`minikube delete --all --purge && rm -rf ~/.minikube ~/.kube\`) puis redémarrage propre du cluster.
+
+---
+EOF
+
+   73  git add .
+   74  git commit -m "chore(init): initialisation du depot Git et journal d erreurs ($TAG)"
+   75  export TAG="n-27-11-2026"
+   76  cd ~/projet-e5-$TAG/apps
+   77  # 1. Cloner les 3 dépôts AppSeed
+   78  git clone https://github.com/app-generator/flask-ecommerce-stripe.git app-stripe
+   79  git clone https://github.com/appseed-projects/06ce5cca-e3c0-44ff-9c6f-cf11c35d45f5.git app-admin
+   80  git clone https://github.com/app-generator/flask-argon-dashboard.git app-front
+   81  rm -rf app-stripe/.git app-admin/.git app-front/.git
+   82  # 2. Dockerfile App 1 : E-commerce Stripe (Flask)
+   83  cat <<EOF > ~/projet-e5-$TAG/apps/app-stripe/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt gunicorn
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN chown -R appuser:appuser /app && chmod -R u+rwX /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "run:app"]
+EOF
+
+   84  # 3. Dockerfile App 2 : Admin (Django Material Kit)
+   85  cat <<EOF > ~/projet-e5-$TAG/apps/app-admin/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN sed -i "s/ALLOWED_HOSTS = .*/ALLOWED_HOSTS = ['*']/g" core/settings.py &&     python manage.py migrate &&     chown -R appuser:appuser /app && chmod -R u+rwX /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--config", "gunicorn-cfg.py", "core.wsgi"]
+EOF
+
+   86  # 4. Dockerfile App 3 : Front (Flask Argon Dashboard)
+   87  cat <<EOF > ~/projet-e5-$TAG/apps/app-front/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt gunicorn
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN chown -R appuser:appuser /app && chmod -R u+rwX /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--config", "gunicorn-cfg.py", "run:app"]
+EOF
+
+   88  # 5. Builder et pousser les 3 images avec l'empreinte obligatoire
+   89  docker build -t localhost:5000/app-stripe-$TAG:1.0 ~/projet-e5-$TAG/apps/app-stripe
+   90  docker build -t localhost:5000/app-admin-$TAG:1.0 ~/projet-e5-$TAG/apps/app-admin
+   91  docker build -t localhost:5000/app-front-$TAG:1.0 ~/projet-e5-$TAG/apps/app-front
+   92  docker push localhost:5000/app-stripe-$TAG:1.0
+   93  docker push localhost:5000/app-admin-$TAG:1.0
+   94  docker push localhost:5000/app-front-$TAG:1.0
+   95  curl -s http://localhost:5000/v2/_catalog
+   96  cd ~/projet-e5-$TAG
+   97  git add apps/
+   98  git commit -m "feat(docker): build et push des 3 applications optimisees ($TAG)"
+   99  export TAG="n-27-11-2026"
+  100  export GIT_TERMINAL_PROMPT=0
+  101  cd ~/projet-e5-$TAG/apps
+  102  # 1. Cloner l'E-commerce Stripe et le Dashboard Flask depuis l'organisation publique appseed-projects
+  103  git clone https://github.com/appseed-projects/django-ecommerce.git app-stripe || git clone https://github.com/appseed-projects/flask-ecommerce-stripe.git app-stripe
+  104  git clone https://github.com/appseed-projects/flask-argon-dashboard.git app-front || git clone https://github.com/appseed-projects/flask-datta-able.git app-front
+  105  rm -rf app-stripe/.git app-front/.git
+  106  ls -la ~/projet-e5-$TAG/apps
+  107  export TAG="n-27-11-2026"
+  108  # 2. Créer le Dockerfile optimisé (multi-stage + non-root) pour app-stripe
+  109  if [ -f ~/projet-e5-$TAG/apps/app-stripe/manage.py ]; then
+cat <<EOF > ~/projet-e5-$TAG/apps/app-stripe/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt gunicorn
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN sed -i "s/ALLOWED_HOSTS = .*/ALLOWED_HOSTS = ['*']/g" core/settings.py 2>/dev/null || true &&     python manage.py migrate &&     chown -R appuser:appuser /app && chmod -R u+rwX /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "core.wsgi"]
+EOF
+ else
+cat <<EOF > ~/projet-e5-$TAG/apps/app-stripe/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt gunicorn
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN chown -R appuser:appuser /app && chmod -R u+rwX /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "run:app"]
+EOF
+ fi
+  110  # 3. Créer le Dockerfile optimisé pour app-front
+  111  cat <<EOF > ~/projet-e5-$TAG/apps/app-front/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt gunicorn
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN chown -R appuser:appuser /app && chmod -R u+rwX /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "run:app"]
+EOF
+
+  112  # 4. Vérifier que le tunnel du registry tourne et pousser les 2 images
+  113  curl -s http://localhost:5000/v2/_catalog || kubectl port-forward --namespace kube-system service/registry 5000:80 &
+  114  sleep 2
+  115  docker build -t localhost:5000/app-stripe-$TAG:1.0 ~/projet-e5-$TAG/apps/app-stripe
+  116  docker build -t localhost:5000/app-front-$TAG:1.0 ~/projet-e5-$TAG/apps/app-front
+  117  docker push localhost:5000/app-stripe-$TAG:1.0
+  118  docker push localhost:5000/app-front-$TAG:1.0
+  119  # 5. Vérifier que les 3 images sont dans le registry
+  120  curl -s http://localhost:5000/v2/_catalog
+  121  export TAG="n-27-11-2026"
+  122  mkdir -p ~/projet-e5-$TAG/apps/{app-stripe,app-front}
+  123  # ==========================================
+  124  # 1. APP 1 : E-COMMERCE STRIPE (Flask + Stripe SDK)
+  125  # ==========================================
+  126  cat <<EOF > ~/projet-e5-$TAG/apps/app-stripe/requirements.txt
+Flask==3.0.3
+stripe==11.1.0
+gunicorn==23.0.0
+EOF
+
+  127  cat <<'EOF' > ~/projet-e5-$TAG/apps/app-stripe/run.py
+import os
+import socket
+import stripe
+from flask import Flask, render_template_string, request, redirect, jsonify
+
+app = Flask(__name__)
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PK = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+DEMO_MODE = os.environ.get("DEMO_MODE", "True")
+
+HTML = """
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>E-Commerce Stripe - {{ tag }}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f6f9; margin: 0; padding: 2rem; }
+    .container { max-width: 800px; margin: auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .badge { background: #e3f2fd; color: #0d47a1; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; }
+    .card { border: 1px solid #e0e0e0; padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    button { background: #635bff; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 1rem; cursor: pointer; font-weight: bold; }
+    button:hover { background: #4b45c6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="badge">Pod : {{ pod }} | Mode Démo : {{ demo }}</span>
+    <h1>Boutique E-Commerce Critique (7M€/an)</h1>
+    <p>Passerelle de paiement <strong>Stripe Checkout</strong> alimentée par Kubernetes <code>Secret</code> et <code>ConfigMap</code>.</p>
+    {% if status == 'success' %}
+      <div style="background:#e8f5e9;color:#1b5e20;padding:1rem;border-radius:8px;">✅ Paiement Stripe validé avec succès !</div>
+    {% elif status == 'cancel' %}
+      <div style="background:#ffebee;color:#b71c1c;padding:1rem;border-radius:8px;">❌ Paiement annulé.</div>
+    {% endif %}
+    <div class="card">
+      <div>
+        <h3>Serveur Rack Haute Disponibilité Pro</h3>
+        <p>Architecture résiliente Kubernetes &amp; Envoy Gateway</p>
+        <strong>149,00 € TTC</strong>
+      </div>
+      <form action="/create-checkout-session" method="POST">
+        <button type="submit">Payer avec Stripe</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+@app.route("/")
+def index():
+    return render_template_string(
+        HTML,
+        pod=socket.gethostname(),
+        demo=DEMO_MODE,
+        tag="n-27-11-2026",
+        status=request.args.get("status", "")
+    )
+
+@app.route("/create-checkout-session", methods=["POST"])
+def create_checkout_session():
+    if not stripe.api_key or not stripe.api_key.startswith("sk_test_"):
+        return jsonify({"error": "Clé STRIPE_SECRET_KEY manquante ou invalide dans le Secret Kubernetes"}), 500
+    host_url = request.host_url.rstrip("/")
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[{
+            "price_data": {
+                "currency": "eur",
+                "product_data": {"name": "Serveur Rack Haute Disponibilité Pro"},
+                "unit_amount": 14900,
+            },
+            "quantity": 1,
+        }],
+        mode="payment",
+        success_url=f"{host_url}/?status=success",
+        cancel_url=f"{host_url}/?status=cancel",
+    )
+    return redirect(session.url, code=303)
+EOF
+
+  128  cat <<EOF > ~/projet-e5-$TAG/apps/app-stripe/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN chown -R appuser:appuser /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "run:app"]
+EOF
+
+  129  # ==========================================
+  130  # 2. APP 3 : PORTAIL FRONTEND / HEALTH (Flask)
+  131  # ==========================================
+  132  cat <<EOF > ~/projet-e5-$TAG/apps/app-front/requirements.txt
+Flask==3.0.3
+gunicorn==23.0.0
+EOF
+
+  133  cat <<'EOF' > ~/projet-e5-$TAG/apps/app-front/run.py
+import os
+import socket
+from flask import Flask, render_template_string
+
+app = Flask(__name__)
+
+HTML = """
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Portail Front - n-27-11-2026</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; }
+    .box { max-width: 700px; margin: auto; background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid #334155; }
+    code { background: #334155; padding: 3px 8px; border-radius: 4px; color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Portail Microservice Front (<code>/front</code>)</h1>
+    <p>Application déployée dans le namespace <code>ns-apps-n-27-11-2026</code></p>
+    <ul>
+      <li><strong>Pod actif (Load Balancing) :</strong> <code>{{ pod }}</code></li>
+      <li><strong>Environnement :</strong> <code>{{ env }}</code></li>
+    </ul>
+    <p>Actualise la page (F5) pour observer la répartition de charge entre les 3 réplicas.</p>
+  </div>
+</body>
+</html>
+"""
+
+@app.route("/")
+@app.route("/front")
+@app.route("/front/")
+def front():
+    return render_template_string(
+        HTML,
+        pod=socket.gethostname(),
+        env=os.environ.get("APP_ENV", "production")
+    )
+EOF
+
+  134  cat <<EOF > ~/projet-e5-$TAG/apps/app-front/Dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:\$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip &&     pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:\$PATH"
+RUN adduser --disabled-password --gecos "" appuser
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+RUN chown -R appuser:appuser /app
+USER appuser
+EXPOSE 5005
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "run:app"]
+EOF
+
+  135  # ==========================================
+  136  # 3. BUILD, PUSH REGISTRY & COMMIT GIT
+  137  # ==========================================
+  138  curl -s http://localhost:5000/v2/_catalog || kubectl port-forward --namespace kube-system service/registry 5000:80 &
+  139  sleep 2
+  140  docker build -t localhost:5000/app-stripe-$TAG:1.0 ~/projet-e5-$TAG/apps/app-stripe
+  141  docker build -t localhost:5000/app-front-$TAG:1.0 ~/projet-e5-$TAG/apps/app-front
+  142  docker push localhost:5000/app-stripe-$TAG:1.0
+  143  docker push localhost:5000/app-front-$TAG:1.0
+  144  curl -s http://localhost:5000/v2/_catalog
+  145  cd ~/projet-e5-$TAG
+  146  git add apps/
+  147  git commit -m "feat(docker): ajout, build multi-stage et push de app-stripe et app-front ($TAG)"
+  148  curl -s http://localhost:5000/v2/_catalog
+  149  export TAG="n-27-11-2026"
+  150  export STRIPE_PK="pk_test_51RemplaceParTaClePubliqueDeTest"
+  151  export STRIPE_SK="sk_test_51RemplaceParTaCleSecreteDeTest"
+  152  # --- 1. Namespaces ---
+  153  cat <<EOF > ~/projet-e5-$TAG/manifests/01-namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ns-gateway-$TAG
+  labels:
+    project: e5-ecommerce
+    owner: navailles-anthony
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ns-apps-$TAG
+  labels:
+    project: e5-ecommerce
+    owner: navailles-anthony
+EOF
+
+  154  # --- 2. ConfigMaps et Secret Stripe (isolé dans ns-gateway) ---
+  155  cat <<EOF > ~/projet-e5-$TAG/manifests/02-config-secret.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-stripe-$TAG
+  namespace: ns-gateway-$TAG
+data:
+  DEMO_MODE: "True"
+  APP_ENV: "production"
+  CURRENCY: "eur"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-stripe-$TAG
+  namespace: ns-gateway-$TAG
+type: Opaque
+stringData:
+  STRIPE_PUBLISHABLE_KEY: "$STRIPE_PK"
+  STRIPE_SECRET_KEY: "$STRIPE_SK"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-apps-$TAG
+  namespace: ns-apps-$TAG
+data:
+  APP_ENV: "production"
+  DEBUG: "False"
+EOF
+
+  156  # --- 3. Les 3 Deployments Haute Disponibilité (3 réplicas chacun = 9 Pods) ---
+  157  cat <<EOF > ~/projet-e5-$TAG/manifests/03-deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-stripe-$TAG
+  namespace: ns-gateway-$TAG
+  labels:
+    app: app-stripe-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-stripe-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-stripe-$TAG
+    spec:
+      containers:
+        - name: app-stripe
+          image: localhost:5000/app-stripe-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-stripe-$TAG
+            - secretRef:
+                name: secret-stripe-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-admin-$TAG
+  namespace: ns-apps-$TAG
+  labels:
+    app: app-admin-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-admin-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-admin-$TAG
+    spec:
+      containers:
+        - name: app-admin
+          image: localhost:5000/app-admin-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "320Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 8
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-front-$TAG
+  namespace: ns-apps-$TAG
+  labels:
+    app: app-front-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-front-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-front-$TAG
+    spec:
+      containers:
+        - name: app-front
+          image: localhost:5000/app-front-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+EOF
+
+  158  # --- 4. Les 3 Services ClusterIP ---
+  159  cat <<EOF > ~/projet-e5-$TAG/manifests/04-services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-stripe-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-admin-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-admin-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-front-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-front-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+EOF
+
+  160  # --- 5. Gateway API (GatewayClass, Gateway cross-namespace, 3 HTTPRoutes) ---
+  161  cat <<EOF > ~/projet-e5-$TAG/manifests/05-gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-$TAG
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gw-ecom-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  gatewayClassName: eg-$TAG
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: svc-stripe-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-admin-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /admin
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: svc-admin-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-front-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /front
+      backendRefs:
+        - name: svc-front-$TAG
+          port: 80
+EOF
+
+  162  cd ~/projet-e5-n-27-11-2026
+  163  git config credential.helper store
+  164  git remote add origin https://github.com/ANVLS/projet-e5-n-27-11-2026.git
+  165  git push -u origin main
+  166  git init
+  167  cd ~/projet-e5-n-27-11-2026
+  168  unset GIT_TERMINAL_PROMPT
+  169  git remote set-url origin https://github.com/ANVLS/projet-e5-n-27-11-2026.git
+  170  git push -u origin main
+  171  export TAG="n-27-11-2026"
+  172  export STRIPE_PK="pk_test_51RemplaceParTaClePubliqueDeTest"
+  173  export STRIPE_SK="sk_test_51RemplaceParTaCleSecreteDeTest"
+  174  # Exclure le fichier contenant les vraies clés API avant de pousser sur GitHub public
+  175  grep -q "02-config-secret.yaml" ~/projet-e5-$TAG/.gitignore \vert{}\vert{} echo "manifests/02-config-secret.yaml" >> ~/projet-e5-$TAG/.gitignore
+  176  # --- 1. Namespaces ---
+  177  cat <<EOF > ~/projet-e5-$TAG/manifests/01-namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ns-gateway-$TAG
+  labels:
+    project: e5-ecommerce
+    owner: navailles-anthony
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ns-apps-$TAG
+  labels:
+    project: e5-ecommerce
+    owner: navailles-anthony
+EOF
+
+  178  # --- 2. ConfigMaps et Secret Stripe (isolé dans ns-gateway) ---
+  179  cat <<EOF > ~/projet-e5-$TAG/manifests/02-config-secret.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-stripe-$TAG
+  namespace: ns-gateway-$TAG
+data:
+  DEMO_MODE: "True"
+  APP_ENV: "production"
+  CURRENCY: "eur"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-stripe-$TAG
+  namespace: ns-gateway-$TAG
+type: Opaque
+stringData:
+  STRIPE_PUBLISHABLE_KEY: "$STRIPE_PK"
+  STRIPE_SECRET_KEY: "$STRIPE_SK"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-apps-$TAG
+  namespace: ns-apps-$TAG
+data:
+  APP_ENV: "production"
+  DEBUG: "False"
+EOF
+
+  180  # --- 3. Les 3 Deployments Haute Disponibilité (3 réplicas chacun = 9 Pods) ---
+  181  cat <<EOF > ~/projet-e5-$TAG/manifests/03-deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-stripe-$TAG
+  namespace: ns-gateway-$TAG
+  labels:
+    app: app-stripe-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-stripe-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-stripe-$TAG
+    spec:
+      containers:
+        - name: app-stripe
+          image: localhost:5000/app-stripe-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-stripe-$TAG
+            - secretRef:
+                name: secret-stripe-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-admin-$TAG
+  namespace: ns-apps-$TAG
+  labels:
+    app: app-admin-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-admin-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-admin-$TAG
+    spec:
+      containers:
+        - name: app-admin
+          image: localhost:5000/app-admin-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "320Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 8
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-front-$TAG
+  namespace: ns-apps-$TAG
+  labels:
+    app: app-front-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-front-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-front-$TAG
+    spec:
+      containers:
+        - name: app-front
+          image: localhost:5000/app-front-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+EOF
+
+  182  # --- 4. Les 3 Services ClusterIP ---
+  183  cat <<EOF > ~/projet-e5-$TAG/manifests/04-services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-stripe-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-admin-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-admin-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-front-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-front-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+EOF
+
+  184  # --- 5. Gateway API (GatewayClass, Gateway cross-namespace, 3 HTTPRoutes) ---
+  185  cat <<EOF > ~/projet-e5-$TAG/manifests/05-gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-$TAG
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gw-ecom-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  gatewayClassName: eg-$TAG
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+
+  186  clear$
+  187  clear
+  188  export TAG="n-27-11-2026"
+  189  export STRIPE_PK="pk_test_51RemplaceParTaClePubliqueDeTest"
+  190  export STRIPE_SK="sk_test_51RemplaceParTaCleSecreteDeTest"
+  191  # 1. Protéger le fichier de secrets dans .gitignore
+  192  echo "manifests/02-config-secret.yaml" >> ~/projet-e5-$TAG/.gitignore
+  193  sort -u ~/projet-e5-$TAG/.gitignore -o ~/projet-e5-$TAG/.gitignore
+  194  # 2. Namespaces
+  195  cat <<EOF > ~/projet-e5-$TAG/manifests/01-namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ns-gateway-$TAG
+  labels:
+    project: e5-ecommerce
+    owner: navailles-anthony
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ns-apps-$TAG
+  labels:
+    project: e5-ecommerce
+    owner: navailles-anthony
+EOF
+
+  196  # 3. ConfigMaps et Secret Stripe
+  197  cat <<EOF > ~/projet-e5-$TAG/manifests/02-config-secret.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-stripe-$TAG
+  namespace: ns-gateway-$TAG
+data:
+  DEMO_MODE: "True"
+  APP_ENV: "production"
+  CURRENCY: "eur"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-stripe-$TAG
+  namespace: ns-gateway-$TAG
+type: Opaque
+stringData:
+  STRIPE_PUBLISHABLE_KEY: "$STRIPE_PK"
+  STRIPE_SECRET_KEY: "$STRIPE_SK"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-apps-$TAG
+  namespace: ns-apps-$TAG
+data:
+  APP_ENV: "production"
+  DEBUG: "False"
+EOF
+
+  198  # 4. Les 3 Deployments Haute Disponibilité (3 réplicas chacun)
+  199  cat <<EOF > ~/projet-e5-$TAG/manifests/03-deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-stripe-$TAG
+  namespace: ns-gateway-$TAG
+  labels:
+    app: app-stripe-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-stripe-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-stripe-$TAG
+    spec:
+      containers:
+        - name: app-stripe
+          image: localhost:5000/app-stripe-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-stripe-$TAG
+            - secretRef:
+                name: secret-stripe-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-admin-$TAG
+  namespace: ns-apps-$TAG
+  labels:
+    app: app-admin-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-admin-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-admin-$TAG
+    spec:
+      containers:
+        - name: app-admin
+          image: localhost:5000/app-admin-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "320Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 8
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-front-$TAG
+  namespace: ns-apps-$TAG
+  labels:
+    app: app-front-$TAG
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-front-$TAG
+  template:
+    metadata:
+      labels:
+        app: app-front-$TAG
+    spec:
+      containers:
+        - name: app-front
+          image: localhost:5000/app-front-$TAG:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-$TAG
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+EOF
+
+  200  # 5. Les 3 Services ClusterIP
+  201  cat <<EOF > ~/projet-e5-$TAG/manifests/04-services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-stripe-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-admin-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-admin-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-front-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  type: ClusterIP
+  selector:
+    app: app-front-$TAG
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+EOF
+
+  202  # 6. Gateway API (GatewayClass, Gateway cross-namespace, 3 HTTPRoutes)
+  203  cat <<EOF > ~/projet-e5-$TAG/manifests/05-gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-$TAG
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gw-ecom-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  gatewayClassName: eg-$TAG
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: svc-stripe-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-admin-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /admin
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: svc-admin-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-front-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /front
+      backendRefs:
+        - name: svc-front-$TAG
+          port: 80
+EOF
+
+  204  export TAG="n-27-11-2026"
+  205  cd ~/projet-e5-$TAG
+  206  kubectl apply -f manifests/
+  207  kubectl rollout status deployment/deploy-stripe-$TAG -n ns-gateway-$TAG
+  208  kubectl rollout status deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  209  kubectl rollout status deployment/deploy-front-$TAG -n ns-apps-$TAG
+  210  git add .
+  211  git commit -m "feat(k8s): deploiement 2 namespaces, 3 apps HA (3 replicas), Services et Gateway API ($TAG)"
+  212  git push
+  213  kubectl get all -n ns-gateway-$TAG
+  214  kubectl get all -n ns-apps-$TAG
+  215  kubectl get gateway,httproute -A
+  216  kubectl get svc -n envoy-gateway-system
+  217  kubectl get
+  218  export TAG="n-27-11-2026"
+  219  # 1. Voir pourquoi le conteneur app-admin crashe
+  220  kubectl logs -l app=app-admin-$TAG -n ns-apps-$TAG --tail=30
+  221  # 2. Vérifier le port réel configuré dans gunicorn-cfg.py de app-admin
+  222  cat ~/projet-e5-$TAG/apps/app-admin/gunicorn-cfg.py
+  223  # 3. Voir pourquoi la Gateway indique PROGRAMMED: False
+  224  kubectl describe gateway gw-ecom-$TAG -n ns-gateway-$TAG | tail -n 20
+  225  export TAG="n-27-11-2026"
+  226  # 1. Forcer ALLOWED_HOSTS = ['*'] à la fin de settings.py dans app-admin
+  227  echo "" >> ~/projet-e5-$TAG/apps/app-admin/core/settings.py
+  228  echo "ALLOWED_HOSTS = ['*']" >> ~/projet-e5-$TAG/apps/app-admin/core/settings.py
+  229  # 2. Re-builder et pousser l'image corrigée dans le registre local
+  230  curl -s http://localhost:5000/v2/_catalog || kubectl port-forward --namespace kube-system service/registry 5000:80 &
+  231  sleep 2
+  232  docker build -t localhost:5000/app-admin-$TAG:1.0 ~/projet-e5-$TAG/apps/app-admin
+  233  docker push localhost:5000/app-admin-$TAG:1.0
+  234  # 3. Redémarrer le déploiement pour qu'il télécharge la nouvelle image
+  235  kubectl rollout restart deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  236  kubectl rollout status deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  237  # 4. Vérifier que les 9 Pods sont maintenant 1/1 Running
+  238  kubectl get pods -n ns-gateway-$TAG
+  239  kubectl get pods -n ns-apps-$TAG
+  240  cd ~/projet-e5-$TAG
+  241  cat <<EOF >> ~/projet-e5-$TAG/erreurs-projet-NAVAILLES-ANTHONY.md
+
+## Erreur 4 : CrashLoopBackOff sur app-admin (HTTP 400 Bad Request sur livenessProbe)
+- **Objectif :** Stabiliser les 3 réplicas de \`deploy-admin-n-27-11-2026\`.
+- **Commande :** \`kubectl logs -l app=app-admin-n-27-11-2026 -n ns-apps-n-27-11-2026\`
+- **Erreur :** \`"GET / HTTP/1.1" 400 143 "-" "kube-probe/1.37"\` suivi de \`Handling signal: term\`. Django rejetait l'IP interne du Pod envoyée par la sonde kubelet dans l'en-tête \`Host\`.
+- **Résolution :** Ajout explicite de \`ALLOWED_HOSTS = ['*']\` à la fin de \`apps/app-admin/core/settings.py\`, rebuild/push de l'image et \`kubectl rollout restart\`.
+
+---
+EOF
+
+  242  git add .
+  243  git commit -m "fix(app-admin): autorisation ALLOWED_HOSTS pour probes Kubernetes + maj journal erreurs ($TAG)"
+  244  git push
+  245  cd ~/projet-e5-$TAG
+  246  cat <<EOF >> ~/projet-e5-$TAG/erreurs-projet-NAVAILLES-ANTHONY.md
+
+## Erreur 4 : CrashLoopBackOff sur app-admin (HTTP 400 Bad Request sur livenessProbe)
+- **Objectif :** Stabiliser les 3 réplicas de \`deploy-admin-n-27-11-2026\`.
+- **Commande :** \`kubectl logs -l app=app-admin-n-27-11-2026 -n ns-apps-n-27-11-2026\`
+- **Erreur :** \`"GET / HTTP/1.1" 400 143 "-" "kube-probe/1.37"\` suivi de \`Handling signal: term\`. Django rejetait l'IP interne du Pod envoyée par la sonde kubelet dans l'en-tête \`Host\`.
+- **Résolution :** Ajout explicite de \`ALLOWED_HOSTS = ['*']\` à la fin de \`apps/app-admin/core/settings.py\`, rebuild/push de l'image et \`kubectl rollout restart\`.
+
+---
+EOF
+
+  247  git add .
+  248  git commit -m "fix(app-admin): autorisation ALLOWED_HOSTS pour probes Kubernetes + maj journal erreurs ($TAG)"
+  249  git push
+  250  export TAG="n-27-11-2026"
+  251  # 1. Vérifier que les 9 Pods (3 par application) sont tous 1/1 Running
+  252  kubectl get pods -n ns-gateway-$TAG
+  253  kubectl get pods -n ns-apps-$TAG
+  254  # 2. Ouvrir l'accès externe vers le Data Plane Envoy sur le port 8085 de la VM (accessible depuis ton PC)
+  255  ENVOY_SVC=$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=gw-ecom-$TAG -o jsonpath='{.items[0].metadata.name}')
+  256  echo "Service Data Plane Envoy : $ENVOY_SVC"
+  257  kubectl port-forward --address 0.0.0.0 -n envoy-gateway-system service/$ENVOY_SVC 8085:80 &
+  258  sleep 2
+  259  # 3. Tester les 3 routes HTTP directement en local sur la VM
+  260  curl -s -o /dev/null -w "Route / (Stripe) : HTTP %{http_code}\n" http://127.0.0.1:8085/
+  261  curl -s -o /dev/null -w "Route /admin (Django) : HTTP %{http_code}\n" http://127.0.0.1:8085/admin
+  262  curl -s -o /dev/null -w "Route /front (Flask) : HTTP %{http_code}\n" http://127.0.0.1:8085/front
+  263  kubectl get pods
+  264  export TAG="n-27-11-2026"
+  265  # 1. S'assurer que ALLOWED_HOSTS = ['*'] est bien présent dans app-admin, rebuilder et redémarrer
+  266  grep -q "ALLOWED_HOSTS = \['\*'\]" ~/projet-e5-$TAG/apps/app-admin/core/settings.py || echo -e "\nALLOWED_HOSTS = ['*']" >> ~/projet-e5-$TAG/apps/app-admin/core/settings.py
+  267  curl -s http://localhost:5000/v2/_catalog || kubectl port-forward --namespace kube-system service/registry 5000:80 &
+  268  sleep 2
+  269  docker build -t localhost:5000/app-admin-$TAG:1.0 ~/projet-e5-$TAG/apps/app-admin
+  270  docker push localhost:5000/app-admin-$TAG:1.0
+  271  kubectl rollout restart deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  272  kubectl rollout status deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  273  # 2. Lister les Pods dans tes deux namespaces (avec -n)
+  274  kubectl get pods -n ns-gateway-$TAG
+  275  kubectl get pods -n ns-apps-$TAG
+  276  # 3. Ouvrir le tunnel vers Envoy Gateway sur le port 8085 de LabTeste
+  277  ENVOY_SVC=$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=gw-ecom-$TAG -o jsonpath='{.items[0].metadata.name}')
+  278  kubectl port-forward --address 0.0.0.0 -n envoy-gateway-system service/$ENVOY_SVC 8085:80 &
+  279  sleep 2
+  280  # 4. Tester les 3 routes HTTP
+  281  curl -s -o /dev/null -w "Route / (Stripe) : HTTP %{http_code}\n" http://127.0.0.1:8085/
+  282  curl -s -o /dev/null -w "Route /admin (Django) : HTTP %{http_code}\n" http://127.0.0.1:8085/admin
+  283  curl -s -o /dev/null -w "Route /front (Flask) : HTTP %{http_code}\n" http://127.0.0.1:8085/front
+  284  export TAG="n-27-11-2026"
+  285  # 1. S'assurer que ALLOWED_HOSTS = ['*'] est bien présent dans app-admin, rebuilder et redémarrer
+  286  grep -q "ALLOWED_HOSTS = \['\*'\]" ~/projet-e5-$TAG/apps/app-admin/core/settings.py || echo -e "\nALLOWED_HOSTS = ['*']" >> ~/projet-e5-$TAG/apps/app-admin/core/settings.py
+  287  curl -s http://localhost:5000/v2/_catalog || kubectl port-forward --namespace kube-system service/registry 5000:80 &
+  288  sleep 2
+  289  docker build -t localhost:5000/app-admin-$TAG:1.0 ~/projet-e5-$TAG/apps/app-admin
+  290  docker push localhost:5000/app-admin-$TAG:1.0
+  291  kubectl rollout restart deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  292  kubectl rollout status deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  293  # 2. Lister les Pods dans tes deux namespaces (avec -n)
+  294  kubectl get pods -n ns-gateway-$TAG
+  295  kubectl get pods -n ns-apps-$TAG
+  296  # 3. Ouvrir le tunnel vers Envoy Gateway sur le port 8085 de LabTeste
+  297  ENVOY_SVC=$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=gw-ecom-$TAG -o jsonpath='{.items[0].metadata.name}')
+  298  kubectl port-forward --address 0.0.0.0 -n envoy-gateway-system service/$ENVOY_SVC 8085:80 &
+  299  sleep 2
+  300  # 4. Tester les 3 routes HTTP
+  301  curl -s -o /dev/null -w "Route / (Stripe) : HTTP %{http_code}\n" http://127.0.0.1:8085/
+  302  curl -s -o /dev/null -w "Route /admin (Django) : HTTP %{http_code}\n" http://127.0.0.1:8085/admin
+  303  curl -s -o /dev/null -w "Route /front (Flask) : HTTP %{http_code}\n" http://127.0.0.1:8085/front
+  304  export TAG="n-27-11-2026"
+  305  cd ~/projet-e5-$TAG
+  306  kubectl get all,configmap,secret,gateway,httproute -n ns-gateway-$TAG > logs/etat-cluster-final.txt
+  307  kubectl get all,configmap,httproute -n ns-apps-$TAG >> logs/etat-cluster-final.txt
+  308  history > logs/historique-commandes.txt
