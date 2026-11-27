@@ -30,3 +30,10 @@
 - **Résolution :** Ajout explicite de `ALLOWED_HOSTS = ['*']` à la fin de `apps/app-admin/core/settings.py`, rebuild/push de l'image et `kubectl rollout restart`.
 
 ---
+
+## Erreur 5 : Redirection /login et fichiers /static en 404 derrière Envoy Gateway
+- **Objectif :** Afficher l'interface complète d'administration Django via la route `/admin`.
+- **Erreur :** HTTP 404 sur `/login/?next=/` puis chargement sans CSS sur `/static/...`, car Envoy dirigeait ces préfixes vers la route racine `/` (`app-stripe`).
+- **Résolution :** Ajout des règles `PathPrefix` pour `/login` et `/static` dans `route-admin-n-27-11-2026` (`manifests/05-gateway.yaml`).
+
+---

@@ -61,6 +61,20 @@ spec:
       backendRefs:
         - name: svc-admin-n-27-11-2026
           port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /login
+      backendRefs:
+        - name: svc-admin-n-27-11-2026
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /static
+      backendRefs:
+        - name: svc-admin-n-27-11-2026
+          port: 80
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

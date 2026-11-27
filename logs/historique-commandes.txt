@@ -1531,3 +1531,230 @@ EOF
   306  kubectl get all,configmap,secret,gateway,httproute -n ns-gateway-$TAG > logs/etat-cluster-final.txt
   307  kubectl get all,configmap,httproute -n ns-apps-$TAG >> logs/etat-cluster-final.txt
   308  history > logs/historique-commandes.txt
+  309  git add logs/
+  310  git commit -m "docs(logs): export etat final du cluster (9/9 pods) et historique ($TAG)"
+  311  git push
+  312  sudo apt update && sudo apt upgrade -y
+  313  sudo apt install -y task-xfce-desktop lightdm
+  314  sudo apt update && sudo apt install -y xrdp
+  315  sudo adduser xrdp ssl-cert
+  316  echo "xfce4-session" > ~/.xsession
+  317  sudo systemctl enable --now xrdp
+  318  sudo systemctl restart xrdp
+  319  sudo ufw allow 3389/tcp
+  320  sudo systemctl restart xrdp
+  321  export TAG="n-27-11-2026"
+  322  cat <<EOF > ~/projet-e5-$TAG/manifests/05-gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-$TAG
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gw-ecom-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  gatewayClassName: eg-$TAG
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: svc-stripe-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-admin-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /admin
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: svc-admin-$TAG
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /login
+      backendRefs:
+        - name: svc-admin-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-front-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /front
+      backendRefs:
+        - name: svc-front-$TAG
+          port: 80
+EOF
+
+  323  kubectl apply -f ~/projet-e5-$TAG/manifests/05-gateway.yaml
+  324  export TAG="n-27-11-2026"
+  325  # 1. Autoriser Django à servir ses fichiers statiques via Gunicorn
+  326  sed -i 's/DEBUG: "False"/DEBUG: "True"/' ~/projet-e5-$TAG/manifests/02-config-secret.yaml
+  327  kubectl apply -f ~/projet-e5-$TAG/manifests/02-config-secret.yaml
+  328  # 2. Ajouter le préfixe /static dans la HTTPRoute de app-admin
+  329  cat <<EOF > ~/projet-e5-$TAG/manifests/05-gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-$TAG
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gw-ecom-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  gatewayClassName: eg-$TAG
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-stripe-$TAG
+  namespace: ns-gateway-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: svc-stripe-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-admin-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /admin
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: svc-admin-$TAG
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /login
+      backendRefs:
+        - name: svc-admin-$TAG
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /static
+      backendRefs:
+        - name: svc-admin-$TAG
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-front-$TAG
+  namespace: ns-apps-$TAG
+spec:
+  parentRefs:
+    - name: gw-ecom-$TAG
+      namespace: ns-gateway-$TAG
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /front
+      backendRefs:
+        - name: svc-front-$TAG
+          port: 80
+EOF
+
+  330  kubectl apply -f ~/projet-e5-$TAG/manifests/05-gateway.yaml
+  331  kubectl rollout restart deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  332  kubectl rollout status deployment/deploy-admin-$TAG -n ns-apps-$TAG
+  333  export TAG="n-27-11-2026"
+  334  cd ~/projet-e5-$TAG
+  335  cat <<EOF >> ~/projet-e5-$TAG/erreurs-projet-NAVAILLES-ANTHONY.md
+
+## Erreur 5 : Redirection /login et fichiers /static en 404 derrière Envoy Gateway
+- **Objectif :** Afficher l'interface complète d'administration Django via la route \`/admin\`.
+- **Erreur :** HTTP 404 sur \`/login/?next=/\` puis chargement sans CSS sur \`/static/...\`, car Envoy dirigeait ces préfixes vers la route racine \`/\` (\`app-stripe\`).
+- **Résolution :** Ajout des règles \`PathPrefix\` pour \`/login\` et \`/static\` dans \`route-admin-$TAG\` (\`manifests/05-gateway.yaml\`).
+
+---
+EOF
+
+  336  kubectl get all,configmap,secret,gateway,httproute -n ns-gateway-$TAG > logs/etat-cluster-final.txt
+  337  echo "==========================================" >> logs/etat-cluster-final.txt
+  338  kubectl get all,configmap,httproute -n ns-apps-$TAG >> logs/etat-cluster-final.txt
+  339  history > logs/historique-commandes.txt
