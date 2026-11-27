@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-stripe-n-27-11-2026
+  namespace: ns-gateway-n-27-11-2026
+  labels:
+    app: app-stripe-n-27-11-2026
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-stripe-n-27-11-2026
+  template:
+    metadata:
+      labels:
+        app: app-stripe-n-27-11-2026
+    spec:
+      containers:
+        - name: app-stripe
+          image: localhost:5000/app-stripe-n-27-11-2026:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-stripe-n-27-11-2026
+            - secretRef:
+                name: secret-stripe-n-27-11-2026
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-admin-n-27-11-2026
+  namespace: ns-apps-n-27-11-2026
+  labels:
+    app: app-admin-n-27-11-2026
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-admin-n-27-11-2026
+  template:
+    metadata:
+      labels:
+        app: app-admin-n-27-11-2026
+    spec:
+      containers:
+        - name: app-admin
+          image: localhost:5000/app-admin-n-27-11-2026:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-n-27-11-2026
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "320Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 8
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-front-n-27-11-2026
+  namespace: ns-apps-n-27-11-2026
+  labels:
+    app: app-front-n-27-11-2026
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-front-n-27-11-2026
+  template:
+    metadata:
+      labels:
+        app: app-front-n-27-11-2026
+    spec:
+      containers:
+        - name: app-front
+          image: localhost:5000/app-front-n-27-11-2026:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5005
+          envFrom:
+            - configMapRef:
+                name: cm-apps-n-27-11-2026
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 20

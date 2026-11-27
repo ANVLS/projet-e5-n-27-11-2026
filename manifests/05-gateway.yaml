@@ -1,0 +1,81 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-n-27-11-2026
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gw-ecom-n-27-11-2026
+  namespace: ns-gateway-n-27-11-2026
+spec:
+  gatewayClassName: eg-n-27-11-2026
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-stripe-n-27-11-2026
+  namespace: ns-gateway-n-27-11-2026
+spec:
+  parentRefs:
+    - name: gw-ecom-n-27-11-2026
+      namespace: ns-gateway-n-27-11-2026
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: svc-stripe-n-27-11-2026
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-admin-n-27-11-2026
+  namespace: ns-apps-n-27-11-2026
+spec:
+  parentRefs:
+    - name: gw-ecom-n-27-11-2026
+      namespace: ns-gateway-n-27-11-2026
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /admin
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: svc-admin-n-27-11-2026
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: route-front-n-27-11-2026
+  namespace: ns-apps-n-27-11-2026
+spec:
+  parentRefs:
+    - name: gw-ecom-n-27-11-2026
+      namespace: ns-gateway-n-27-11-2026
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /front
+      backendRefs:
+        - name: svc-front-n-27-11-2026
+          port: 80

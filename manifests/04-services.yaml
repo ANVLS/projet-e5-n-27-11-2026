@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-stripe-n-27-11-2026
+  namespace: ns-gateway-n-27-11-2026
+spec:
+  type: ClusterIP
+  selector:
+    app: app-stripe-n-27-11-2026
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-admin-n-27-11-2026
+  namespace: ns-apps-n-27-11-2026
+spec:
+  type: ClusterIP
+  selector:
+    app: app-admin-n-27-11-2026
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-front-n-27-11-2026
+  namespace: ns-apps-n-27-11-2026
+spec:
+  type: ClusterIP
+  selector:
+    app: app-front-n-27-11-2026
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5005
